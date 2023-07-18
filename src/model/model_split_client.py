@@ -167,12 +167,12 @@ class SplitClientModel(AbstractModel):
 
             # print(f"[DEBUG]: Intermediate: {x}")
 
-            if x is None:
-                break
-            elif type(x) is torch.Tensor:
+            if type(x) is torch.Tensor:
                 x = x.to(self.device)
                 x = self.forward(x)
-            # else: (type(x) is str)
+            if x is None:
+                break
+
             result = x
 
             print(f"[HISTORY]: {result}")
