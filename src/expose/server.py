@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify, abort
-from flask_cors import CORS
-from typing import Callable, Any
+from typing import Callable
+
+from helper import DATA
+
 
 class Server:
     """
-    A Server class to handle text processing and feedback reception via a simple Flask-based API.
+    A Server class that implements a simple Flask-based API for handling text processing,
+    managing chats and roles, and receiving feedback.
     """
 
     def __init__(self, function: Callable[[str], str]):
@@ -14,137 +17,136 @@ class Server:
         :param function: The function to be used for processing text.
         """
         self.app = Flask(__name__)
-
-        self.app.route("/api/text", methods=['POST'])(self.post_text)
-        self.app.route("/api/feedback", methods=['POST'])(self.post_feedback)
-        self.app.route("/api/history", methods=['DELETE'])(self.delete_history)
-        self.app.route("/api/history", methods=['POST'])(self.post_history)
-        self.app.route("/api/chat", methods=['POST'])(self.post_chat)
-        self.app.route("/api/role", methods=['POST'])(self.post_role)
-        self.app.route("/api/chat/continue", methods=['POST'])(self.post_continue_chat)
-
         self.function = function
 
-        # Initialize the histories and role as dictionaries
-        self.histories = {}
-        self.roles = {}
+        # Register routes
+        # Create chat, role; switch role, chat; delete role, chat; post text; clear, get history; continue chat, post feedback.
+        self.app.route("/api/create/chat", methods=['POST'])(self.create_chat)
+        self.app.route("/api/create/role", methods=['POST'])(self.create_role)
+        self.app.route("/api/switch/role", methods=['POST'])(self.switch_role)
+        self.app.route("/api/switch/chat", methods=['POST'])(self.switch_chat)
+        self.app.route("/api/delete/role", methods=['DELETE'])(self.delete_role)
+        self.app.route("/api/delete/chat", methods=['DELETE'])(self.delete_chat)
+        self.app.route("/api/text", methods=['POST'])(self.post_text)
+        self.app.route("/api/history", methods=['DELETE'])(self.clear_history)
+        self.app.route("/api/history", methods=['GET'])(self.get_history)
+        self.app.route("/api/chat/continue", methods=['POST'])(self.continue_chat)
+        self.app.route("/api/feedback", methods=['POST'])(self.post_feedback)
 
-    def check_auth(self, role: str) -> bool:
+    def create_chat(self):
         """
-        Check the request for correct authorization.
-
-        :return: Whether the request is authorized.
+        Create a new chat.
         """
-        return role in self.roles
+        chat_uid = request.json.get('chat_uid')
+        if chat_uid:
+            DATA['chats'][chat_uid] = []
+            DATA['current_chat_uid'] = chat_uid
+        return jsonify(message='Chat created'), 200
 
-    def post_text(self) -> Any:
+    def create_role(self):
         """
-        Handle a POST request to the /api/text endpoint.
-
-        :return: A JSON response containing the result of processing the request's text.
+        Create a new role.
         """
-        data = request.get_json()
-        role = data.get('role')
-        if not self.check_auth(role):
-            abort(401)  # Unauthorized
-        text = data.get('text')
+        role_uid = request.json.get('role_uid')
+        if role_uid:
+            DATA['roles'].append(role_uid)
+        return jsonify(message='Role created'), 200
 
-        if text:
-            result = self.function(text)  # Process the text
-            return jsonify({"result": result}), 200
+    def switch_role(self):
+        """
+        Switch to a different role.
+        """
+        role_uid = request.json.get('role_uid')
+        if role_uid in DATA["roles"]:
+            DATA['current_role_uid'] = role_uid
+            return jsonify(message='Role switched'), 200
         else:
-            return jsonify({"error": "Invalid request parameter"}), 400
-
-    def post_feedback(self) -> Any:
-        """
-        Handle a POST request to the /api/feedback endpoint.
-
-        :return: A JSON response confirming receipt of feedback.
-        """
-        data = request.get_json()
-        role = data.get('role')
-        if not self.check_auth(role):
             abort(401)  # Unauthorized
-        feedback = data.get('feedback')
 
-        if feedback:
-            return jsonify({"message": "Feedback received"}), 200
+    def switch_chat(self):
+        """
+        Switch to a different chat.
+        """
+        chat_uid = request.json.get('chat_uid')
+        if chat_uid in DATA['chats']:
+            DATA['current_chat_uid'] = chat_uid
+            return jsonify(message='Chat switched'), 200
         else:
-            return jsonify({"error": "Invalid request parameter"}), 400
-
-    def delete_history(self) -> Any:
-        """
-        Handle a DELETE request to the /api/history endpoint.
-        Clear the chat history.
-        """
-        data = request.get_json()
-        role = data.get('role')
-        if not self.check_auth(role):
             abort(401)  # Unauthorized
-        self.histories[role] = []
-        return jsonify({"message": "History cleared"}), 200
 
-    def post_history(self) -> Any:
+    def delete_role(self):
         """
-        Handle a POST request to the /api/history endpoint.
-        Returns the chat history.
+        Delete a role.
         """
-        data = request.get_json()
-        role = data.get('role')
-        if not self.check_auth(role):
+        role_uid = request.json.get('role_uid')
+        if role_uid in DATA["roles"]:
+            DATA['roles'].remove(role_uid)
+            return jsonify(message='Role deleted'), 200
+        else:
             abort(401)  # Unauthorized
-        return jsonify({"history": self.histories[role]}), 200
 
-    def post_chat(self) -> Any:
+    def delete_chat(self):
         """
-        Handle a POST request to the /api/chat endpoint.
-        Creates a new chat.
+        Delete a chat.
         """
-        data = request.get_json()
-        role = data.get('role')
-        if role:
-            self.roles[role] = True  # Add the role to the list of valid roles
-            self.histories[role] = []  # Initialize the history for this role
-            return jsonify({"message": f"New chat created with role {role}"}), 200
+        chat_uid = request.json.get('chat_uid')
+        if chat_uid in DATA['chats']:
+            del DATA['chats'][chat_uid]
+            return jsonify(message='Chat deleted'), 200
         else:
-            return jsonify({"error": "Invalid request parameter"}), 400
-
-    def post_role(self) -> Any:
-        """
-        Handle a POST request to the /api/role endpoint.
-        Changes the AI role.
-        """
-        data = request.get_json()
-        role = data.get('role')
-        if role:
-            self.roles[role] = True
-            return jsonify({"message": f"Role changed to {role}"}), 200
-        else:
-            return jsonify({"error": "Invalid request parameter"}), 400
-
-    def post_continue_chat(self) -> Any:
-        """
-        Handle a POST request to the /api/chat/continue endpoint.
-        Continues a chat based on the history.
-        """
-        data = request.get_json()
-        role = data.get('role')
-        if not self.check_auth(role):
             abort(401)  # Unauthorized
-        text = data.get('text')
-        if text:
-            # Process the text
-            result = self.function(text)
-            # Update the history
-            self.histories[role].append({'sender': 'user', 'message': text})
-            self.histories[role].append({'sender': 'AI', 'message': result})
-            return jsonify({"response": result}), 200
-        else:
-            return jsonify({"error": "Invalid request parameter"}), 400
 
-    def run(self, host: str, port: int) -> None:
+    def post_text(self):
         """
-        Runs the Flask server.
+        Post text and get a response.
+        """
+        text = request.json.get('text')
+        DATA["chats"][DATA["current_chat_uid"]].append(text)
+        result = self.function(text)
+        DATA["chats"][DATA["current_chat_uid"]].append(result)
+        return jsonify(result=result), 200
+
+    def clear_history(self):
+        """
+        Clear chat history.
+        """
+        chat_uid = request.json.get('chat_uid')
+        if chat_uid in DATA['chats']:
+            DATA['chats'][chat_uid] = []
+            return jsonify(message='History cleared'), 200
+        else:
+            abort(401)  # Unauthorized
+
+    def get_history(self):
+        """
+        Get chat history.
+        """
+        chat_uid = request.json.get('chat_uid')
+        if chat_uid in DATA['chats']:
+            return jsonify(history=DATA['chats'][chat_uid]), 200
+        else:
+            abort(401)  # Unauthorized
+
+    def continue_chat(self):
+        """
+        Continue a chat based on chat history.
+        """
+        # You need to implement this method based on your requirements
+        raise NotImplementedError
+
+    def post_feedback(self):
+        """
+        Post user feedback.
+        """
+        # You need to implement this method based on your requirements
+        raise NotImplementedError
+
+    def run(self, host='127.0.0.1', port=5000):
+        """
+        Run the Server.
+
+        :param host: The hostname to listen on.
+        :param port: The port of the webserver.
         """
         self.app.run(host=host, port=port)
 
@@ -158,6 +160,7 @@ if __name__ == '__main__':
         :return: The processed text.
         """
         return data  # In reality, this would be replaced by actual processing logic
+
 
     server = Server(process_func)
     server.run("localhost", 10086)
