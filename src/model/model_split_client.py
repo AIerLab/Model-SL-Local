@@ -3,7 +3,6 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from transformers import LogitsProcessorList
 
-from model.chatglm_6b_split_server.modeling_chatglm import InvalidScoreLogitsProcessor
 from splitlearn import SplitClient
 import pickle
 from abc import abstractmethod, ABC
