@@ -14,7 +14,6 @@ class Server:
         :param function: The function to be used for processing text.
         """
         self.app = Flask(__name__)
-        CORS(self.app)
 
         self.app.route("/api/text", methods=['POST'])(self.post_text)
         self.app.route("/api/feedback", methods=['POST'])(self.post_feedback)

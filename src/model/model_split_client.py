@@ -43,7 +43,7 @@ class SplitClientModel(AbstractModel):
             # pickle the tensor data
             serialized_data = pickle.dumps(x)
             # Send the result to the server
-            print("Sending intermediate result to the server")
+            print("[MODEL]: Sending intermediate result to the server")
             server_data = self.client.send_data({"byte_data": serialized_data, "stage": "forward"})["byte_data"]
             x = pickle.loads(server_data)
 
@@ -160,10 +160,12 @@ class SplitClientModel(AbstractModel):
             # pickle the tensor data
             serialized_data = pickle.dumps(query)
             # Send the result to the server
-            print("Sending query to the server")
+            print("[MODEL]: Sending query to the server")
             server_data = self.client.send_data({"byte_data": serialized_data, "stage": "forward"})["byte_data"]
             # print(repr(serialized_data))
             x = pickle.loads(server_data)
+
+            # print(f"[DEBUG]: Intermediate: {x}")
 
             if x is None:
                 break
@@ -171,6 +173,8 @@ class SplitClientModel(AbstractModel):
                 x = x.to(self.device)
                 x = self.forward(x)
             # else: (type(x) is str)
-
             result = x
+
+            print(f"[HISTORY]: {result}")
+            query = None
         return result
