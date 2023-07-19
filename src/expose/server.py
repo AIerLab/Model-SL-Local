@@ -101,9 +101,19 @@ class Server:
         Post text and get a response.
         """
         text = request.json.get('text')
-        DATA["chats"][DATA["current_chat_uid"]].append(text)
+        DATA["chats"][DATA["current_chat_uid"]].append(
+            dict(
+                sender="user",
+                message=text
+            )
+        )
         result = self.function(text)
-        DATA["chats"][DATA["current_chat_uid"]].append(result)
+        DATA["chats"][DATA["current_chat_uid"]].append(
+            dict(
+                sender=DATA["current_role_uid"],
+                message=result
+            )
+        )
         return jsonify(result=result), 200
 
     def clear_history(self):
