@@ -29,7 +29,7 @@ class Server:
         self.app.route("/api/delete/chat", methods=['DELETE'])(self.delete_chat)
         self.app.route("/api/text", methods=['POST'])(self.post_text)
         self.app.route("/api/history", methods=['DELETE'])(self.clear_history)
-        self.app.route("/api/history", methods=['GET'])(self.get_history)
+        self.app.route("/api/history", methods=['POST'])(self.get_history)
         self.app.route("/api/chat/continue", methods=['POST'])(self.continue_chat)
         self.app.route("/api/feedback", methods=['POST'])(self.post_feedback)
 

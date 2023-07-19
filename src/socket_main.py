@@ -6,7 +6,7 @@ from splitlearn import SplitClient
 import torch.nn as nn
 
 from model import SplitClientModel
-from src.splitlearn import SplitSocket
+from splitlearn import SplitSocket
 
 layer_num = 28
 
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # model_layers = nn.ModuleList([nn.Linear(in_features=4096, out_features=4096, bias=True) for layer_id in range(4)])
 
     # Init data, socket and model.
-    client = SplitSocket(socket.gethostbyname("server.natappfree.cc"), 46519)
+    client = SplitSocket(socket.gethostbyname("656a62542501b343.natapp.cc"), 10191)
     model = SplitClientModel(model_layers, client, CLIENT_DIR).half()
 
     # print("Welcome to the ChatGLM-6B model. Type your message.")
