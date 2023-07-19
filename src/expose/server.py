@@ -107,7 +107,8 @@ class Server:
                 message=text
             )
         )
-        result = self.function(text)
+        query = DATA["test_blueprint"][DATA["current_role_uid"]] + text
+        result = self.function(query)
         DATA["chats"][DATA["current_chat_uid"]].append(
             dict(
                 sender=DATA["current_role_uid"],
