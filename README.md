@@ -1,4 +1,4 @@
-# AI-ETF-FL-SL
+# Model-SL-Local
 Artificial Intelligence Data Encryption and Model Personalisation Framework based on Federated Learning and Split Learning.
 
 ## Start
