@@ -1,5 +1,17 @@
 import torch
 import torch.nn as nn
+from chatglm_block.modeling_chatglm import GLMBlock
+import json
+import os
+from chatglm_block.configuration_chatglm import ChatGLMConfig
+
+model_config_path = os.path.join('model', 'chatglm_6b_split_server', 'config.json')
+
+# Open and load the JSON file into a Python dict
+with open(model_config_path) as config_file:
+    config_dict = json.load(config_file)
+
+configuration = ChatGLMConfig(**config_dict)
 
 class ZeroConvBatchNorm(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -19,13 +31,17 @@ class IdentityMappingModule(nn.Module):
     def __init__(self, in_channels, hidden_channels):
         super(IdentityMappingModule, self).__init__()
 
-        layers = []
-        for _ in range(6):  # Create 6 pairs of zero conv and batch norm layers # TODO Determine number of layers needed
-            zero_conv_bn = ZeroConvBatchNorm(hidden_channels, hidden_channels)
-            layers.append(zero_conv_bn)
-        self.identity_module = nn.Sequential(*layers)
+        self.zeroconv1 = ZeroConvBatchNorm(hidden_channels, hidden_channels)
+        self.glmblock = GLMBlock(configuration)
+        self.zeroconv2 = ZeroConvBatchNorm(hidden_channels, hidden_channels)
 
-    def forward(self, x):
-        x = x.unsqueeze(-1).unsqueeze(-1)
-        out = self.identity_module(x)  # Apply the sequence of zero conv and batch norm layers
-        return out + x  # Implement skip connection by adding input tensor to output tensor
+    def forward(self, x_dict):
+        x_input = x_dict["hidden_states"]
+        
+        out = x_input.unsqueeze(-1).unsqueeze(-1)
+        out = self.zerocov1(out)  # Apply the sequence of zero conv and batch norm layers
+        x_dict["hidden_states"] = out
+        out = self.glmblock(**x_dict)[0]
+        out = self.zeroconv2(out)
+
+        return out + x_input  # Implement skip connection by adding input tensor to output tensor
