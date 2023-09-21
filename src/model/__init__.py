@@ -1,2 +1,3 @@
 from .model_abstract import AbstractModel
 from .model_split_client import SplitClientModel
+from .identity_mapping_module import IdentityMappingModule

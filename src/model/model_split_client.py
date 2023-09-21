@@ -154,27 +154,48 @@ class SplitClientModel(AbstractModel):
         # TODO: Implement this method
         pass
 
-    def process(self, query):
+    def process(self, query, trainable=False):
         result = None
-        while True:
-            # pickle the tensor data
-            serialized_data = pickle.dumps(query)
-            # Send the result to the server
-            print("[MODEL]: Sending query to the server")
-            server_data = self.client.send_data({"byte_data": serialized_data, "stage": "forward"})["byte_data"]
-            # print(repr(serialized_data))
-            x = pickle.loads(server_data)
+        if trainable:
+            while True:
+                # Receive firt intermediate result from the server
+                print("[MODEL]: Receive firt intermediate result from the server")
+                server_data = self.client.reveive_data({"byte_data": None, "stage": "forward"})["byte_data"]
+                # print(repr(serialized_data))
+                x = pickle.loads(server_data)
 
-            # print(f"[DEBUG]: Intermediate: {x}")
+                # print(f"[DEBUG]: Intermediate: {x}")
 
-            if type(x) is torch.Tensor:
-                x = x.to(self.device)
-                x = self.forward(x)
-            if x is None:
-                break
+                if type(x) is dict:
+                    x["hidden_states"] = x["hidden_states"].to(self.device)
+                    x = self.forward(x)
+                if x is None:
+                    break
 
-            result = x
+                result = x
 
-            print(f"[HISTORY]: {result}")
-            query = None
-        return result
+                print(f"[HISTORY]: {result}")
+                query = None
+        else:
+            while True:
+                # pickle the tensor data
+                serialized_data = pickle.dumps(query)
+                # Send the result to the server
+                print("[MODEL]: Sending query to the server")
+                server_data = self.client.send_data({"byte_data": serialized_data, "stage": "forward"})["byte_data"]
+                # print(repr(serialized_data))
+                x = pickle.loads(server_data)
+
+                # print(f"[DEBUG]: Intermediate: {x}")
+
+                if type(x) is dict:
+                    x["hidden_states"] = x["hidden_states"].to(self.device)
+                    x = self.forward(x)
+                if x is None:
+                    break
+
+                result = x
+
+                print(f"[HISTORY]: {result}")
+                query = None
+            return result
