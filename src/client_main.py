@@ -3,7 +3,7 @@ from expose import Server
 from splitlearn import SplitClient
 import torch.nn as nn
 
-from model import SplitClientModel
+from model import SplitClientModel, IdentityMappingModule
 
 layer_num = 28
 
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # CLIENT_DIR = "../tmp/client/c01"
 
     # model_layers = nn.ModuleList([])
-    model_layers = nn.ModuleList([nn.Identity() for layer_id in range(1)]) # TODO change the number of split layers
+    model_layers = nn.ModuleList([IdentityMappingModule(4096, 4096) for layer_id in range(1)]) # TODO change the number of split layers
     # model_layers = nn.ModuleList([nn.Linear(in_features=4096, out_features=4096, bias=True) for layer_id in range(4)])
 
     # Init data, socket and model.
