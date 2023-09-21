@@ -1,47 +1,72 @@
 import torch
 import torch.nn as nn
-from chatglm_block.modeling_chatglm import GLMBlock
+from model.chatglm_block import GLMBlock
+from model.chatglm_block import ChatGLMConfig
 import json
 import os
-from chatglm_block.configuration_chatglm import ChatGLMConfig
 
-model_config_path = os.path.join('model', 'chatglm_6b_split_server', 'config.json')
+# Define the path to the model configuration JSON file
+model_config_path = os.path.join('model', 'chatglm_block', 'config.json')
 
-# Open and load the JSON file into a Python dict
+# Open the configuration file and load it into a Python dictionary
 with open(model_config_path) as config_file:
     config_dict = json.load(config_file)
 
+# Create a configuration object using the dictionary values
 configuration = ChatGLMConfig(**config_dict)
 
-class ZeroConvBatchNorm(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(ZeroConvBatchNorm, self).__init__()
+# Define a custom PyTorch module with a zero-initialized linear layer followed by batch normalization
+class ZeroLinearBatchNorm(nn.Module):
+    def __init__(self, in_features, out_features):
+        super(ZeroLinearBatchNorm, self).__init__()
 
-        # Define a zero convolutional layer with batch normalization
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1) # TODO finalise the choice of kernel_size, stride and padding
-        self.conv.weight.data.fill_(0)  # Initialize weights with zeros
-        self.bn = nn.BatchNorm2d(out_channels)
+        # Define a linear layer with 'in_features' input features and 'out_features' output features
+        # Initialize the weights of the linear layer to zero
+        self.linear = nn.Linear(in_features, out_features)
+        self.linear.weight.data.fill_(0) 
+
+        # Define a batch normalization layer to normalize the outputs of the linear layer
+        self.bn = nn.BatchNorm1d(out_features)
 
     def forward(self, x):
-        out = self.conv(x)  # Apply the zero convolution operation
-        out = self.bn(out)   # Apply batch normalization
-        return out
+        # Apply the linear layer to the input tensor 'x'
+        out = self.linear(x)
+        
+        # Apply the batch normalization to the output of the linear layer
+        # Note: The squeeze and unsqueeze operations are used to adjust the tensor dimensions as expected by the batch normalization layer
+        out = self.bn(out.squeeze(1)) 
+        return out.unsqueeze(1)
 
+# Define a module that includes a sequence of zero-initialized linear layers, batch normalization, and a GLM block
 class IdentityMappingModule(nn.Module):
-    def __init__(self, in_channels, hidden_channels):
+    def __init__(self, in_features, hidden_features):
         super(IdentityMappingModule, self).__init__()
 
-        self.zeroconv1 = ZeroConvBatchNorm(hidden_channels, hidden_channels)
-        self.glmblock = GLMBlock(configuration)
-        self.zeroconv2 = ZeroConvBatchNorm(hidden_channels, hidden_channels)
+        # Define a sequence of layers: zero-initialized linear layer, GLM block, and another zero-initialized linear layer
+        self.zerolinear1 = ZeroLinearBatchNorm(in_features, hidden_features)
+        self.glmblock = GLMBlock(configuration.hidden_size, configuration.num_attention_heads, 
+                                 configuration.layernorm_epsilon, configuration)
+        self.zerolinear2 = ZeroLinearBatchNorm(hidden_features, in_features)
 
     def forward(self, x_dict):
+        # Extract the 'hidden_states' tensor from the input dictionary
         x_input = x_dict["hidden_states"]
         
-        out = x_input.unsqueeze(-1).unsqueeze(-1)
-        out = self.zerocov1(out)  # Apply the sequence of zero conv and batch norm layers
+        # Print the shape of the input tensor for debugging purposes
+        # print(f"[DEBUG]: x_input shape: {x_input.shape}")
+
+        # Apply the first zero-initialized linear layer followed by batch normalization
+        out = self.zerolinear1(x_input)  
+        
+        # Update the 'hidden_states' in the dictionary and apply the GLM block
         x_dict["hidden_states"] = out
         out = self.glmblock(**x_dict)[0]
-        out = self.zeroconv2(out)
 
-        return out + x_input  # Implement skip connection by adding input tensor to output tensor
+        # Apply the second zero-initialized linear layer followed by batch normalization
+        out = self.zerolinear2(out)
+        
+        # Print the output tensor added to the input tensor (skip connection) for debugging purposes
+        # print(f"[DEBUG]: forward result: {out+x_input}")
+
+        # Implement skip connection by adding the input tensor to the output tensor and return the result
+        return out + x_input  

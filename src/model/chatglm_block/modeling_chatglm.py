@@ -32,7 +32,7 @@ from transformers.generation.logits_process import LogitsProcessor
 from transformers.generation.utils import LogitsProcessorList, StoppingCriteriaList, GenerationConfig, ModelOutput
 
 from .configuration_chatglm import ChatGLMConfig
-from ..layer_split_server import SplitServerLayer
+# from ..layer_split_server import SplitServerLayer
 
 # flags required to enable jit fusion kernels
 
