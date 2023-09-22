@@ -18,7 +18,8 @@ if __name__ == '__main__':
 
     # model_layers = nn.ModuleList([])
     # model_layers = nn.ModuleList([nn.Identity() for layer_id in range(0)]) # TODO change the number of split layers
-    model_layers = nn.ModuleList([IdentityMappingModule(4096, 4096) for layer_id in range(1)]) # TODO change the number of split layers
+    model_layers = nn.ModuleList([IdentityMappingModule(
+        4096, 4096) for layer_id in range(5)])  # TODO change the number of split layers
     # model_layers = nn.ModuleList([nn.Linear(in_features=4096, out_features=4096, bias=True) for layer_id in range(4)])
 
     # Init data, socket and model.
@@ -30,10 +31,10 @@ if __name__ == '__main__':
         try:
             query = input("\nUser: ").strip()
             if query == "stop":
-                model.stop() # TODO
+                model.stop()  # TODO
                 break
             elif query == "clear":
-                model.clear() # TODO
+                model.clear()  # TODO
                 print("Chat history cleared.")
             else:
                 response = model.process(query)
